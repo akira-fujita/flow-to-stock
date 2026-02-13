@@ -12,38 +12,58 @@ from src.slack_client import fetch_slack_thread, parse_slack_thread_url
 load_dotenv()
 
 st.set_page_config(page_title="flow-to-stock", page_icon="🔄", layout="wide")
+
+
+def get_secret(key: str) -> str:
+    """Get a secret from st.secrets (Streamlit Cloud) or os.environ (local)."""
+    try:
+        return st.secrets[key]
+    except (KeyError, FileNotFoundError):
+        return os.environ.get(key, "")
+
+
+# --- パスワード認証 ---
+app_password = get_secret("APP_PASSWORD")
+if app_password:
+    password = st.text_input("Password", type="password")
+    if not password:
+        st.stop()
+    if password != app_password:
+        st.error("パスワードが違います")
+        st.stop()
+
 st.title("flow-to-stock")
 st.caption("Slack議論を「行動」と「思考資産」に変換する")
 
 
 def get_slack_client() -> WebClient:
-    token = os.environ.get("SLACK_USER_TOKEN", "")
+    token = get_secret("SLACK_USER_TOKEN")
     if not token:
-        st.error("SLACK_USER_TOKEN が設定されていません。.env を確認してください。")
+        st.error("SLACK_USER_TOKEN が設定されていません。")
         st.stop()
     return WebClient(token=token)
 
 
 def get_notion_token() -> str:
-    token = os.environ.get("NOTION_TOKEN", "")
+    token = get_secret("NOTION_TOKEN")
     if not token:
-        st.error("NOTION_TOKEN が設定されていません。.env を確認してください。")
+        st.error("NOTION_TOKEN が設定されていません。")
         st.stop()
     return token
 
 
 def get_notion_database_id() -> str:
-    db_id = os.environ.get("NOTION_DATABASE_ID", "")
+    db_id = get_secret("NOTION_DATABASE_ID")
     if not db_id:
-        st.error("NOTION_DATABASE_ID が設定されていません。.env を確認してください。")
+        st.error("NOTION_DATABASE_ID が設定されていません。")
         st.stop()
     return db_id
 
 
 def get_gemini_api_key() -> str:
-    key = os.environ.get("GEMINI_API_KEY", "")
+    key = get_secret("GEMINI_API_KEY")
     if not key:
-        st.error("GEMINI_API_KEY が設定されていません。.env を確認してください。")
+        st.error("GEMINI_API_KEY が設定されていません。")
         st.stop()
     return key
 
@@ -70,7 +90,7 @@ with st.sidebar:
 
             if result["reminders"]:
                 slack = get_slack_client()
-                user_id = os.environ.get("SLACK_REMINDER_USER_ID", "")
+                user_id = get_secret("SLACK_REMINDER_USER_ID")
                 if user_id:
                     sent = send_reminders(slack, user_id, result["reminders"])
                     st.info(f"リマインド送信: {sent}件")

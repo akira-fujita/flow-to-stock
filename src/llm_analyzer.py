@@ -3,6 +3,7 @@ import re
 from dataclasses import dataclass
 
 from google import genai
+from pydantic import ValidationError
 
 from src.models import AnalysisResult, SlackThread
 
@@ -90,7 +91,7 @@ def analyze_thread(
         try:
             data = json.loads(stripped)
             return AnalysisResult.model_validate(data), total_usage
-        except (json.JSONDecodeError, Exception):
+        except (json.JSONDecodeError, ValidationError):
             if attempt == 0:
                 continue
             raise

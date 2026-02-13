@@ -138,3 +138,42 @@ class TestAnalyzeThread:
         assert result.theme == "Retry Test"
         assert mock_client.models.generate_content.call_count == 2
         assert usage.total_tokens == 600  # 300 per attempt x 2
+
+    @patch("src.llm_analyzer.genai.Client")
+    def test_retries_on_validation_error(self, mock_client_cls):
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+
+        invalid_response = self._mock_response(
+            {
+                "theme": "Missing fields",
+                "structure": {
+                    "premises": [],
+                    "key_issues": [],
+                    "conclusions_or_current_state": [],
+                },
+                # required fields intentionally missing
+            }
+        )
+        valid_response = self._mock_response(
+            {
+                "theme": "Recovered",
+                "structure": {
+                    "premises": [],
+                    "key_issues": [],
+                    "conclusions_or_current_state": [],
+                },
+                "next_decision_required": "Decide owner",
+                "suggested_next_action": "Alice updates by Friday",
+                "suggested_owner": "Alice",
+                "new_concepts": [],
+                "strategic_implications": [],
+                "risk_signals": [],
+            }
+        )
+        mock_client.models.generate_content.side_effect = [invalid_response, valid_response]
+
+        result, usage = analyze_thread(self._make_thread(), api_key="test-key")
+        assert result.theme == "Recovered"
+        assert mock_client.models.generate_content.call_count == 2
+        assert usage.total_tokens == 600

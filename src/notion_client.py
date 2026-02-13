@@ -6,6 +6,7 @@ from src.models import AnalysisResult
 
 NOTION_VERSION = "2022-06-28"
 BASE_URL = "https://api.notion.com/v1"
+HTTP_TIMEOUT = 30.0
 
 
 def _headers(token: str) -> dict:
@@ -73,6 +74,7 @@ def find_existing_page(
         f"{BASE_URL}/databases/{database_id}/query",
         headers=_headers(token),
         json={"filter": {"property": "Slack URL", "url": {"equals": slack_url}}},
+        timeout=HTTP_TIMEOUT,
     )
     resp.raise_for_status()
     results = resp.json().get("results", [])
@@ -102,6 +104,7 @@ def save_to_notion(
             f"{BASE_URL}/pages/{existing_page_id}",
             headers=_headers(token),
             json={"properties": properties},
+            timeout=HTTP_TIMEOUT,
         )
         resp.raise_for_status()
         return f"https://notion.so/{existing_page_id.replace('-', '')}"
@@ -113,6 +116,7 @@ def save_to_notion(
                 "parent": {"database_id": database_id},
                 "properties": properties,
             },
+            timeout=HTTP_TIMEOUT,
         )
         resp.raise_for_status()
         page_id = resp.json()["id"]

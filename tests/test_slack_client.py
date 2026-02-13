@@ -88,3 +88,34 @@ class TestFetchSlackThread:
         assert thread.last_reply_at == datetime.fromtimestamp(
             1705312260.654321, tz=timezone.utc
         )
+
+    def test_fetch_handles_bot_message_without_user(self):
+        client = MagicMock(spec=WebClient)
+        client.conversations_info.return_value = {"channel": {"name": "general"}}
+        client.conversations_replies.return_value = {
+            "messages": [
+                {
+                    "user": "U001",
+                    "text": "Human message",
+                    "ts": "1705312200.123456",
+                },
+                {
+                    "bot_id": "B001",
+                    "username": "deploy-bot",
+                    "text": "Bot message",
+                    "ts": "1705312260.654321",
+                },
+            ]
+        }
+        client.users_info.return_value = {"user": {"real_name": "Alice"}}
+
+        thread = fetch_slack_thread(
+            client,
+            "C01234ABC",
+            "1705312200.123456",
+            "https://workspace.slack.com/archives/C01234ABC/p1705312200123456",
+        )
+
+        assert len(thread.messages) == 2
+        assert thread.messages[0].user == "Alice"
+        assert thread.messages[1].user == "deploy-bot"
