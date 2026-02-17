@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Finderから起動時にPATHが通らないため、シェルプロファイルを読み込む
+export PATH="$HOME/.local/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
+
+cd "$(dirname "$0")/../../.."
+
+PORT=18501
+
+# 既にflow-to-stockが起動中ならブラウザで開くだけ
+if lsof -i :$PORT -sTCP:LISTEN >/dev/null 2>&1; then
+    open "http://localhost:$PORT"
+else
+    uv run streamlit run app.py --server.port $PORT
+fi
