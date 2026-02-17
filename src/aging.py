@@ -5,6 +5,7 @@ from slack_sdk import WebClient
 
 NOTION_VERSION = "2022-06-28"
 BASE_URL = "https://api.notion.com/v1"
+HTTP_TIMEOUT = 30.0
 
 
 def _headers(token: str) -> dict:
@@ -32,22 +33,38 @@ def run_aging_update(
     if today is None:
         today = date.today()
 
-    resp = httpx.post(
-        f"{BASE_URL}/databases/{database_id}/query",
-        headers=_headers(token),
-        json={
-            "filter": {
-                "and": [
-                    {"property": "Status", "select": {"does_not_equal": "Done"}},
-                    {"property": "Status", "select": {"does_not_equal": "Archived"}},
-                ]
-            }
-        },
-    )
-    resp.raise_for_status()
-    response = resp.json()
+    filter_payload = {
+        "filter": {
+            "and": [
+                {"property": "Status", "select": {"does_not_equal": "Done"}},
+                {"property": "Status", "select": {"does_not_equal": "Archived"}},
+            ]
+        }
+    }
 
-    pages = response.get("results", [])
+    pages = []
+    next_cursor = None
+    while True:
+        payload = dict(filter_payload)
+        if next_cursor:
+            payload["start_cursor"] = next_cursor
+
+        resp = httpx.post(
+            f"{BASE_URL}/databases/{database_id}/query",
+            headers=_headers(token),
+            json=payload,
+            timeout=HTTP_TIMEOUT,
+        )
+        resp.raise_for_status()
+        response = resp.json()
+
+        pages.extend(response.get("results", []))
+        if not response.get("has_more"):
+            break
+        next_cursor = response.get("next_cursor")
+        if not next_cursor:
+            break
+
     reminders = []
     updated = 0
 
@@ -64,6 +81,7 @@ def run_aging_update(
             f"{BASE_URL}/pages/{page['id']}",
             headers=_headers(token),
             json={"properties": {"Aging Days": {"number": aging_days}}},
+            timeout=HTTP_TIMEOUT,
         )
         update_resp.raise_for_status()
         updated += 1

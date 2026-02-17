@@ -1,7 +1,7 @@
 from datetime import date
 from unittest.mock import patch, MagicMock
 
-from src.aging import calculate_aging_days, run_aging_update, send_reminders
+from src.aging import HTTP_TIMEOUT, calculate_aging_days, run_aging_update, send_reminders
 
 
 class TestCalculateAgingDays:
@@ -50,6 +50,8 @@ class TestRunAgingUpdate:
         mock_patch.assert_called_once()
         call_json = mock_patch.call_args[1]["json"]
         assert call_json["properties"]["Aging Days"]["number"] == 7
+        assert mock_post.call_args.kwargs["timeout"] == HTTP_TIMEOUT
+        assert mock_patch.call_args.kwargs["timeout"] == HTTP_TIMEOUT
 
     @patch("src.aging.httpx.patch")
     @patch("src.aging.httpx.post")
@@ -74,6 +76,36 @@ class TestRunAgingUpdate:
         # Open + Aging >= 7 のみリマインド対象
         assert len(result["reminders"]) == 1
         assert result["reminders"][0]["page_id"] == "p1"
+
+    @patch("src.aging.httpx.patch")
+    @patch("src.aging.httpx.post")
+    def test_handles_notion_query_pagination(self, mock_post, mock_patch):
+        first_query = MagicMock()
+        first_query.json.return_value = {
+            "results": [_make_page("p1", "Open", "2026-02-06")],
+            "has_more": True,
+            "next_cursor": "cursor-1",
+        }
+        first_query.raise_for_status = MagicMock()
+
+        second_query = MagicMock()
+        second_query.json.return_value = {
+            "results": [_make_page("p2", "Open", "2026-02-05")],
+            "has_more": False,
+            "next_cursor": None,
+        }
+        second_query.raise_for_status = MagicMock()
+
+        mock_post.side_effect = [first_query, second_query]
+
+        update_resp = MagicMock()
+        update_resp.raise_for_status = MagicMock()
+        mock_patch.return_value = update_resp
+
+        result = run_aging_update("test-token", "db-id", today=date(2026, 2, 13))
+        assert result["updated"] == 2
+        assert mock_post.call_count == 2
+        assert mock_patch.call_count == 2
 
 
 class TestSendReminders:
