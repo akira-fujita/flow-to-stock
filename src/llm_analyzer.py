@@ -42,7 +42,7 @@ Given a Slack thread, analyze the discussion and output a JSON object with the f
 
 Rules:
 - Output ONLY valid JSON, no markdown fences, no extra text
-- Match the language of the input: if the discussion is in Japanese, output in Japanese
+- ALWAYS output in Japanese regardless of the input language
 - next_decision_required must be a specific decision, not a generic TODO
 - suggested_next_action must include who, what, and when
 - Be concise but thorough
