@@ -44,12 +44,14 @@ flow-to-stock/
 │   ├── slack_client.py     # Slack URL parser & thread fetcher
 │   ├── llm_analyzer.py     # Gemini analysis with token tracking
 │   ├── notion_client.py    # Notion API (direct httpx)
+│   ├── cli.py              # Headless CLI entrypoint
 │   └── aging.py            # Aging calculation & reminders
 └── tests/
     ├── test_models.py
     ├── test_slack_client.py
     ├── test_llm_analyzer.py
     ├── test_notion_client.py
+    ├── test_cli.py
     └── test_aging.py
 ```
 
@@ -112,6 +114,16 @@ Connect your Notion integration to the database.
 
 ## Usage
 
+After pulling latest changes, run dependency sync first:
+
+```bash
+uv sync
+```
+
+If another virtualenv is active, deactivate it before running `uv` commands.
+
+### Streamlit UI
+
 ```bash
 uv run streamlit run app.py
 ```
@@ -121,6 +133,26 @@ uv run streamlit run app.py
 3. Click **Analyze** to run Gemini analysis
 4. Review the structured output
 5. Click **Save to Notion** to persist
+
+### Headless CLI
+
+You can run the same flow from command line with a Slack thread URL.
+
+```bash
+uv run flow-to-stock "https://your-workspace.slack.com/archives/C.../p..."
+```
+
+If the entry point is not found in your environment, use:
+
+```bash
+uv run python -m src.cli "https://your-workspace.slack.com/archives/C.../p..."
+```
+
+Optional flags:
+
+- `--memo "..."` add extra context for LLM analysis
+- `--no-save` analyze only (skip Notion persistence)
+- `--model gemini-2.0-flash` override Gemini model
 
 ### Aging Management
 

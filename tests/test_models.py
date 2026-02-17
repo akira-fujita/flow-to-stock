@@ -3,6 +3,7 @@ from datetime import datetime
 from src.models import (
     AnalysisResult,
     DiscussionStructure,
+    ParticipantStance,
     SlackMessage,
     SlackThread,
 )
@@ -98,3 +99,35 @@ class TestAnalysisResult:
             risk_signals=[],
         )
         assert result.new_concepts == []
+        assert result.participants == []
+
+    def test_result_with_participants(self):
+        result = AnalysisResult(
+            theme="API Design",
+            structure=DiscussionStructure(
+                premises=[], key_issues=[], conclusions_or_current_state=[],
+            ),
+            next_decision_required="Choose method",
+            suggested_next_action="Alice drafts spec",
+            suggested_owner="Alice",
+            new_concepts=[],
+            strategic_implications=[],
+            risk_signals=[],
+            participants=[
+                ParticipantStance(
+                    name="Alice",
+                    stance="REST推進派",
+                    key_arguments=["既存チームの経験値"],
+                    concerns=["GraphQL移行コスト"],
+                ),
+                ParticipantStance(
+                    name="Bob",
+                    stance="GraphQL推進派",
+                    key_arguments=["フロントの柔軟性"],
+                    concerns=[],
+                ),
+            ],
+        )
+        assert len(result.participants) == 2
+        assert result.participants[0].name == "Alice"
+        assert result.participants[1].concerns == []

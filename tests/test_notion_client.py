@@ -1,7 +1,13 @@
 from unittest.mock import patch, MagicMock
 
 from src.models import AnalysisResult, DiscussionStructure
-from src.notion_client import build_notion_properties, fetch_open_pages, find_existing_page, save_to_notion
+from src.notion_client import (
+    HTTP_TIMEOUT,
+    build_notion_properties,
+    fetch_open_pages,
+    find_existing_page,
+    save_to_notion,
+)
 
 
 class TestBuildNotionProperties:
@@ -89,6 +95,7 @@ class TestFindExistingPage:
 
         result = find_existing_page("test-token", "db-id", "https://slack.com/test")
         assert result == "page-123"
+        assert mock_post.call_args.kwargs["timeout"] == HTTP_TIMEOUT
 
     @patch("src.notion_client.httpx.post")
     def test_returns_none_when_not_found(self, mock_post):
@@ -99,6 +106,7 @@ class TestFindExistingPage:
 
         result = find_existing_page("test-token", "db-id", "https://slack.com/test")
         assert result is None
+        assert mock_post.call_args.kwargs["timeout"] == HTTP_TIMEOUT
 
 
 class TestSaveToNotion:

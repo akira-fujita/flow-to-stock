@@ -95,6 +95,14 @@ class TestAnalyzeThread:
                 "new_concepts": ["API gateway"],
                 "strategic_implications": ["Sets direction"],
                 "risk_signals": ["No auth consensus"],
+                "participants": [
+                    {
+                        "name": "Alice",
+                        "stance": "Discussion lead",
+                        "key_arguments": ["Need to decide on API"],
+                        "concerns": [],
+                    }
+                ],
             }
         )
 
@@ -102,6 +110,8 @@ class TestAnalyzeThread:
         assert isinstance(result, AnalysisResult)
         assert result.theme == "API Design"
         assert result.suggested_owner == "Alice"
+        assert len(result.participants) == 1
+        assert result.participants[0].name == "Alice"
         assert isinstance(usage, TokenUsage)
         assert usage.total_tokens == 300
 
@@ -138,3 +148,42 @@ class TestAnalyzeThread:
         assert result.theme == "Retry Test"
         assert mock_client.models.generate_content.call_count == 2
         assert usage.total_tokens == 600  # 300 per attempt x 2
+
+    @patch("src.llm_analyzer.genai.Client")
+    def test_retries_on_validation_error(self, mock_client_cls):
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+
+        invalid_response = self._mock_response(
+            {
+                "theme": "Missing fields",
+                "structure": {
+                    "premises": [],
+                    "key_issues": [],
+                    "conclusions_or_current_state": [],
+                },
+                # required fields intentionally missing
+            }
+        )
+        valid_response = self._mock_response(
+            {
+                "theme": "Recovered",
+                "structure": {
+                    "premises": [],
+                    "key_issues": [],
+                    "conclusions_or_current_state": [],
+                },
+                "next_decision_required": "Decide owner",
+                "suggested_next_action": "Alice updates by Friday",
+                "suggested_owner": "Alice",
+                "new_concepts": [],
+                "strategic_implications": [],
+                "risk_signals": [],
+            }
+        )
+        mock_client.models.generate_content.side_effect = [invalid_response, valid_response]
+
+        result, usage = analyze_thread(self._make_thread(), api_key="test-key")
+        assert result.theme == "Recovered"
+        assert mock_client.models.generate_content.call_count == 2
+        assert usage.total_tokens == 600

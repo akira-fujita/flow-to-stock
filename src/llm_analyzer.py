@@ -3,6 +3,7 @@ import re
 from dataclasses import dataclass
 
 from google import genai
+from pydantic import ValidationError
 
 from src.models import AnalysisResult, SlackThread
 
@@ -28,15 +29,24 @@ Given a Slack thread, analyze the discussion and output a JSON object with the f
   "suggested_owner": "Person most likely responsible (from thread participants)",
   "new_concepts": ["New terms, concepts, or keywords introduced in this discussion"],
   "strategic_implications": ["Medium/long-term impacts or architectural implications"],
-  "risk_signals": ["Undefined risks, misalignments, or uncertainties detected"]
+  "risk_signals": ["Undefined risks, misalignments, or uncertainties detected"],
+  "participants": [
+    {
+      "name": "Participant name",
+      "stance": "Their overall position or role in the discussion",
+      "key_arguments": ["Main points they made or supported"],
+      "concerns": ["Worries or objections they raised"]
+    }
+  ]
 }
 
 Rules:
 - Output ONLY valid JSON, no markdown fences, no extra text
-- Match the language of the input: if the discussion is in Japanese, output in Japanese
+- ALWAYS output in Japanese regardless of the input language
 - next_decision_required must be a specific decision, not a generic TODO
 - suggested_next_action must include who, what, and when
-- Be concise but thorough"""
+- Be concise but thorough
+- participants: list every person who spoke, summarize their stance and arguments"""
 
 
 def format_thread_for_prompt(thread: SlackThread, memo: str | None = None) -> str:
@@ -90,7 +100,7 @@ def analyze_thread(
         try:
             data = json.loads(stripped)
             return AnalysisResult.model_validate(data), total_usage
-        except (json.JSONDecodeError, Exception):
+        except (json.JSONDecodeError, ValidationError):
             if attempt == 0:
                 continue
             raise

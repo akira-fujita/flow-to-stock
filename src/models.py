@@ -24,6 +24,13 @@ class DiscussionStructure(BaseModel):
     conclusions_or_current_state: list[str]
 
 
+class ParticipantStance(BaseModel):
+    name: str
+    stance: str
+    key_arguments: list[str]
+    concerns: list[str]
+
+
 class AnalysisResult(BaseModel):
     theme: str
     structure: DiscussionStructure
@@ -33,3 +40,4 @@ class AnalysisResult(BaseModel):
     new_concepts: list[str]
     strategic_implications: list[str]
     risk_signals: list[str]
+    participants: list[ParticipantStance] = []

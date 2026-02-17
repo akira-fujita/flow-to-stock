@@ -41,16 +41,38 @@ def fetch_slack_thread(
     def get_user_name(user_id: str) -> str:
         if user_id not in user_cache:
             user_info = client.users_info(user=user_id)
-            user_cache[user_id] = user_info["user"]["real_name"]
+            user_obj = user_info.get("user", {})
+            profile = user_obj.get("profile", {})
+            user_cache[user_id] = (
+                user_obj.get("real_name")
+                or profile.get("display_name")
+                or user_obj.get("name")
+                or user_id
+            )
         return user_cache[user_id]
 
     messages = []
     for msg in raw_messages:
+        user_id = msg.get("user")
+        if user_id:
+            user_name = get_user_name(user_id)
+        else:
+            user_name = (
+                msg.get("username")
+                or msg.get("bot_profile", {}).get("name")
+                or msg.get("bot_id")
+                or "Unknown"
+            )
+
+        ts = msg.get("ts")
+        if not ts:
+            continue
+
         messages.append(
             SlackMessage(
-                user=get_user_name(msg["user"]),
-                text=msg["text"],
-                timestamp=datetime.fromtimestamp(float(msg["ts"]), tz=timezone.utc),
+                user=user_name,
+                text=msg.get("text", ""),
+                timestamp=datetime.fromtimestamp(float(ts), tz=timezone.utc),
             )
         )
 
