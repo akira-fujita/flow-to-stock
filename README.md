@@ -12,9 +12,11 @@ flow-to-stock is a personal productivity tool that takes "flow" information (eph
 - **LLM-Powered Structuring** — Gemini 2.0 Flash extracts themes, premises, key issues, conclusions, next actions, and more
 - **Notion Persistence** — Save structured results to a Notion database with full property mapping
 - **Deduplication** — Automatically updates existing entries when re-analyzing the same thread
+- **Refresh** — Notionに保存済みのアイテムを選択して、最新のスレッド内容で再分析・上書き更新
 - **Aging Tracker** — Calculates days since last activity on open discussions
 - **Slack Reminders** — Sends DM reminders for discussions stale 7+ days
 - **Token Usage Monitoring** — Tracks Gemini API token consumption per session
+- **macOS App Launcher** — Dockに追加できる `.app` バンドル付き（ダブルクリックで起動）
 
 ## Architecture
 
@@ -39,6 +41,8 @@ flow-to-stock/
 ├── app.py                  # Streamlit UI
 ├── pyproject.toml          # Dependencies & config
 ├── .env.example            # Environment variable template
+├── flow-to-stock.app/      # macOS app bundle (Dock対応)
+├── flow-to-stock.command   # ダブルクリック起動用スクリプト
 ├── src/
 │   ├── models.py           # Pydantic data models
 │   ├── slack_client.py     # Slack URL parser & thread fetcher
@@ -122,7 +126,11 @@ uv sync
 
 If another virtualenv is active, deactivate it before running `uv` commands.
 
-### Streamlit UI
+### macOS App (推奨)
+
+`flow-to-stock.app` をFinderからDockにドラッグして追加。クリックで起動。
+
+### Streamlit UI (ターミナルから)
 
 ```bash
 uv run streamlit run app.py
@@ -153,6 +161,15 @@ Optional flags:
 - `--memo "..."` add extra context for LLM analysis
 - `--no-save` analyze only (skip Notion persistence)
 - `--model gemini-2.0-flash` override Gemini model
+
+### Refresh (再分析)
+
+サイドバーの「リフレッシュ」セクションで:
+1. 「一覧を取得」をクリックしてNotionのOpen/Waitingアイテムを表示
+2. 更新したいアイテムにチェック
+3. 「選択したアイテムを更新」でSlackスレッドを再取得・再分析・上書き保存
+
+ステータスやメモは保持されます。
 
 ### Aging Management
 
