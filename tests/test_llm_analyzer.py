@@ -95,6 +95,14 @@ class TestAnalyzeThread:
                 "new_concepts": ["API gateway"],
                 "strategic_implications": ["Sets direction"],
                 "risk_signals": ["No auth consensus"],
+                "participants": [
+                    {
+                        "name": "Alice",
+                        "stance": "Discussion lead",
+                        "key_arguments": ["Need to decide on API"],
+                        "concerns": [],
+                    }
+                ],
             }
         )
 
@@ -102,6 +110,8 @@ class TestAnalyzeThread:
         assert isinstance(result, AnalysisResult)
         assert result.theme == "API Design"
         assert result.suggested_owner == "Alice"
+        assert len(result.participants) == 1
+        assert result.participants[0].name == "Alice"
         assert isinstance(usage, TokenUsage)
         assert usage.total_tokens == 300
 

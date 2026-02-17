@@ -182,6 +182,17 @@ if "analysis" in st.session_state:
         st.markdown("**新しい概念:**")
         st.markdown(" ".join([f"`{c}`" for c in analysis.new_concepts]))
 
+    if analysis.participants:
+        with st.expander("参加者の立場", expanded=True):
+            for p in analysis.participants:
+                st.markdown(f"**{p.name}** — {p.stance}")
+                if p.key_arguments:
+                    for arg in p.key_arguments:
+                        st.markdown(f"- {arg}")
+                if p.concerns:
+                    for c in p.concerns:
+                        st.markdown(f"- :warning: {c}")
+
     if analysis.strategic_implications:
         with st.expander("戦略的示唆"):
             for s in analysis.strategic_implications:

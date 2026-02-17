@@ -2,7 +2,7 @@ from datetime import date
 
 import httpx
 
-from src.models import AnalysisResult
+from src.models import AnalysisResult, ParticipantStance
 
 NOTION_VERSION = "2022-06-28"
 BASE_URL = "https://api.notion.com/v1"
@@ -27,6 +27,20 @@ def _rich_text(text: str) -> dict:
 def _rich_text_from_list(items: list[str]) -> dict:
     """Create rich text from a list, newline-separated."""
     return _rich_text("\n".join(items))
+
+
+def _format_participants(participants: list[ParticipantStance]) -> str:
+    """Format participant stances into readable text for Notion."""
+    if not participants:
+        return ""
+    lines = []
+    for p in participants:
+        lines.append(f"[{p.name}] {p.stance}")
+        for arg in p.key_arguments:
+            lines.append(f"  + {arg}")
+        for concern in p.concerns:
+            lines.append(f"  ! {concern}")
+    return "\n".join(lines)
 
 
 def build_notion_properties(
@@ -60,6 +74,7 @@ def build_notion_properties(
             result.strategic_implications
         ),
         "Risk Signals": _rich_text_from_list(result.risk_signals),
+        "Participants": _rich_text(_format_participants(result.participants)),
         "Memo": _rich_text(memo) if memo else {"rich_text": []},
     }
 
