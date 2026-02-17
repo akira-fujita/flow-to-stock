@@ -117,3 +117,46 @@ def save_to_notion(
         resp.raise_for_status()
         page_id = resp.json()["id"]
         return f"https://notion.so/{page_id.replace('-', '')}"
+
+
+def fetch_open_pages(token: str, database_id: str) -> list[dict]:
+    """Fetch Open/Waiting pages from Notion database.
+
+    Returns list of dicts with: page_id, title, slack_url, aging_days, status.
+    """
+    resp = httpx.post(
+        f"{BASE_URL}/databases/{database_id}/query",
+        headers=_headers(token),
+        json={
+            "filter": {
+                "and": [
+                    {"property": "Status", "select": {"does_not_equal": "Done"}},
+                    {"property": "Status", "select": {"does_not_equal": "Archived"}},
+                ]
+            }
+        },
+    )
+    resp.raise_for_status()
+
+    pages = []
+    for page in resp.json().get("results", []):
+        props = page["properties"]
+        slack_url = props.get("Slack URL", {}).get("url")
+        if not slack_url:
+            continue
+
+        title_parts = props.get("Title", {}).get("title", [])
+        title = title_parts[0]["text"]["content"] if title_parts else "Untitled"
+
+        aging_days = props.get("Aging Days", {}).get("number", 0)
+        status = props.get("Status", {}).get("select", {}).get("name", "")
+
+        pages.append({
+            "page_id": page["id"],
+            "title": title,
+            "slack_url": slack_url,
+            "aging_days": aging_days,
+            "status": status,
+        })
+
+    return pages

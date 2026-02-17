@@ -1,7 +1,7 @@
 from unittest.mock import patch, MagicMock
 
 from src.models import AnalysisResult, DiscussionStructure
-from src.notion_client import build_notion_properties, find_existing_page, save_to_notion
+from src.notion_client import build_notion_properties, fetch_open_pages, find_existing_page, save_to_notion
 
 
 class TestBuildNotionProperties:
@@ -159,3 +159,76 @@ class TestSaveToNotion:
         )
         mock_patch.assert_called_once()
         assert mock_post.call_count == 1  # only query, no create
+
+
+class TestFetchOpenPages:
+    @patch("src.notion_client.httpx.post")
+    def test_returns_page_list(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "results": [
+                {
+                    "id": "page-1",
+                    "properties": {
+                        "Title": {"title": [{"text": {"content": "議論A"}}]},
+                        "Slack URL": {"url": "https://slack.com/archives/C01/p111"},
+                        "Last Managed At": {"date": {"start": "2026-02-10"}},
+                        "Aging Days": {"number": 7},
+                        "Status": {"select": {"name": "Open"}},
+                    },
+                },
+                {
+                    "id": "page-2",
+                    "properties": {
+                        "Title": {"title": [{"text": {"content": "議論B"}}]},
+                        "Slack URL": {"url": "https://slack.com/archives/C02/p222"},
+                        "Last Managed At": {"date": {"start": "2026-02-15"}},
+                        "Aging Days": {"number": 2},
+                        "Status": {"select": {"name": "Waiting"}},
+                    },
+                },
+            ]
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        pages = fetch_open_pages("test-token", "db-id")
+        assert len(pages) == 2
+        assert pages[0]["page_id"] == "page-1"
+        assert pages[0]["title"] == "議論A"
+        assert pages[0]["slack_url"] == "https://slack.com/archives/C01/p111"
+        assert pages[0]["aging_days"] == 7
+        assert pages[0]["status"] == "Open"
+
+    @patch("src.notion_client.httpx.post")
+    def test_returns_empty_list_when_no_pages(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"results": []}
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        pages = fetch_open_pages("test-token", "db-id")
+        assert pages == []
+
+    @patch("src.notion_client.httpx.post")
+    def test_skips_page_without_slack_url(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "results": [
+                {
+                    "id": "page-no-url",
+                    "properties": {
+                        "Title": {"title": [{"text": {"content": "No URL"}}]},
+                        "Slack URL": {"url": None},
+                        "Last Managed At": {"date": {"start": "2026-02-10"}},
+                        "Aging Days": {"number": 3},
+                        "Status": {"select": {"name": "Open"}},
+                    },
+                },
+            ]
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        pages = fetch_open_pages("test-token", "db-id")
+        assert pages == []
