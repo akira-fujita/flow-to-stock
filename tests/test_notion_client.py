@@ -175,6 +175,7 @@ class TestFetchOpenPages:
                         "Last Managed At": {"date": {"start": "2026-02-10"}},
                         "Aging Days": {"number": 7},
                         "Status": {"select": {"name": "Open"}},
+                        "Memo": {"rich_text": [{"text": {"content": "補足メモ"}}]},
                     },
                 },
                 {
@@ -185,6 +186,7 @@ class TestFetchOpenPages:
                         "Last Managed At": {"date": {"start": "2026-02-15"}},
                         "Aging Days": {"number": 2},
                         "Status": {"select": {"name": "Waiting"}},
+                        "Memo": {"rich_text": []},
                     },
                 },
             ]
@@ -199,6 +201,8 @@ class TestFetchOpenPages:
         assert pages[0]["slack_url"] == "https://slack.com/archives/C01/p111"
         assert pages[0]["aging_days"] == 7
         assert pages[0]["status"] == "Open"
+        assert pages[0]["memo"] == "補足メモ"
+        assert pages[1]["memo"] is None
 
     @patch("src.notion_client.httpx.post")
     def test_returns_empty_list_when_no_pages(self, mock_post):

@@ -6,7 +6,7 @@ from slack_sdk import WebClient
 
 from src.aging import run_aging_update, send_reminders
 from src.llm_analyzer import analyze_thread
-from src.notion_client import save_to_notion
+from src.notion_client import fetch_open_pages, save_to_notion
 from src.slack_client import fetch_slack_thread, parse_slack_thread_url
 
 load_dotenv()
@@ -85,6 +85,70 @@ with st.sidebar:
                     )
             else:
                 st.info("停滞している議論はありません。")
+
+    st.divider()
+
+    # --- リフレッシュ ---
+    st.header("リフレッシュ")
+
+    if st.button("一覧を取得"):
+        with st.spinner("Notionから取得中..."):
+            notion_token = get_notion_token()
+            db_id = get_notion_database_id()
+            pages = fetch_open_pages(notion_token, db_id)
+            st.session_state["refresh_pages"] = pages
+
+    if "refresh_pages" in st.session_state:
+        pages = st.session_state["refresh_pages"]
+        if not pages:
+            st.info("Open/Waitingのアイテムはありません。")
+        else:
+            selected = []
+            for i, page in enumerate(pages):
+                checked = st.checkbox(
+                    f"{page['title']} ({page['aging_days']}日前)",
+                    key=f"refresh_{page['page_id']}",
+                )
+                if checked:
+                    selected.append(page)
+
+            if selected and st.button("選択したアイテムを更新"):
+                slack = get_slack_client()
+                api_key = get_gemini_api_key()
+                notion_token = get_notion_token()
+                db_id = get_notion_database_id()
+
+                progress = st.progress(0)
+                success_count = 0
+                errors = []
+
+                for idx, page in enumerate(selected):
+                    try:
+                        channel_id, thread_ts = parse_slack_thread_url(page["slack_url"])
+                        thread = fetch_slack_thread(slack, channel_id, thread_ts, page["slack_url"])
+                        analysis, token_usage = analyze_thread(
+                            thread, api_key, memo=page.get("memo"),
+                        )
+                        save_to_notion(
+                            notion_token, db_id, analysis,
+                            thread.url, thread.channel_name,
+                            page.get("memo"), page.get("status", "Open"),
+                        )
+                        st.session_state["session_total_tokens"] = (
+                            st.session_state.get("session_total_tokens", 0)
+                            + token_usage.total_tokens
+                        )
+                        success_count += 1
+                    except Exception as e:
+                        errors.append(f"{page['title']}: {e}")
+
+                    progress.progress((idx + 1) / len(selected))
+
+                st.success(f"更新完了: {success_count}/{len(selected)}件")
+                for err in errors:
+                    st.error(err)
+
+                del st.session_state["refresh_pages"]
 
 # --- メイン: 入力フォーム ---
 st.header("Slack スレッドを分析")

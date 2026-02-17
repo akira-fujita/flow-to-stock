@@ -33,6 +33,7 @@ def build_notion_properties(
     slack_url: str,
     channel_name: str,
     memo: str | None,
+    status: str = "Open",
 ) -> dict:
     """Build Notion page properties from analysis result."""
     today = date.today().isoformat()
@@ -41,7 +42,7 @@ def build_notion_properties(
         "Title": {"title": [{"text": {"content": result.theme}}]},
         "Slack URL": {"url": slack_url},
         "Channel": {"select": {"name": channel_name}},
-        "Status": {"select": {"name": "Open"}},
+        "Status": {"select": {"name": status}},
         "Next Decision Required": _rich_text(result.next_decision_required),
         "Next Action": _rich_text(result.suggested_next_action),
         "Owner": _rich_text(result.suggested_owner),
@@ -88,12 +89,13 @@ def save_to_notion(
     slack_url: str,
     channel_name: str,
     memo: str | None,
+    status: str = "Open",
 ) -> str:
     """Save analysis result to Notion. Returns the page URL.
 
     Updates existing page if same Slack URL found, otherwise creates new.
     """
-    properties = build_notion_properties(result, slack_url, channel_name, memo)
+    properties = build_notion_properties(result, slack_url, channel_name, memo, status)
 
     existing_page_id = find_existing_page(token, database_id, slack_url)
 
@@ -122,7 +124,7 @@ def save_to_notion(
 def fetch_open_pages(token: str, database_id: str) -> list[dict]:
     """Fetch Open/Waiting pages from Notion database.
 
-    Returns list of dicts with: page_id, title, slack_url, aging_days, status.
+    Returns list of dicts with: page_id, title, slack_url, aging_days, status, memo.
     """
     resp = httpx.post(
         f"{BASE_URL}/databases/{database_id}/query",
@@ -151,12 +153,16 @@ def fetch_open_pages(token: str, database_id: str) -> list[dict]:
         aging_days = props.get("Aging Days", {}).get("number", 0)
         status = props.get("Status", {}).get("select", {}).get("name", "")
 
+        memo_parts = props.get("Memo", {}).get("rich_text", [])
+        memo = memo_parts[0]["text"]["content"] if memo_parts else None
+
         pages.append({
             "page_id": page["id"],
             "title": title,
             "slack_url": slack_url,
             "aging_days": aging_days,
             "status": status,
+            "memo": memo,
         })
 
     return pages
